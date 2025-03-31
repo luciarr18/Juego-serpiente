@@ -1,6 +1,15 @@
 # Importo las librerías que me hacen falta
 from tkinter import * #Interfaz gráfica en python
 import random #Para la aparición de la comida
+from PIL import Image, ImageTk  # Para cargar imágenes en Tkinter
+
+# Intentamos importar PIL y manejar la excepción si no está instalada
+try:
+    from PIL import Image, ImageTk  # Para cargar imágenes en Tkinter
+except ImportError:
+    print("Error: PIL no está instalado. Ejecuta 'pip install pillow' para instalarlo.")
+    print("Luego, ejecuta 'python main.py' para iniciar el juego sin el fondo.")
+    exit()  
 
 # Empiezo definiendo las dimensiones del juego
 WIDTH = 500     # Anchura
@@ -8,7 +17,7 @@ HEIGHT = 500    # Altura
 SPEED = 300     # Velocidad de la serpiente
 SPACE_SIZE = 20 # Espacio de la pantalla
 BODY_SIZE = 2   # Tamaño inicial de la serpiente, conforme empieza el juego
-FOOD = '#FFFFFF' # Color para la comida
+FOOD = '#FF0000' # Color para la comida
 SNAKE = '#00FF00' # Color para la serpiente
 BACKGROUND = '#000000' # Color para el fondo
 
@@ -42,11 +51,12 @@ class Snake:
 
 # Creo la clase comida 
 class Food:
-    def __init__(self, canvas):
+    def __init__(self, canvas, snake):
         self.canvas = canvas
+        self.snake = snake # Para evitar que la comida aparezca sobre la serpiente
         self.coordinates = []  # Lista para almacenar la coordenada de la comida
         self.square = None  # Inicialmente, la comida no tiene un rectángulo
-        self.snake = snake # Para evitar que la comida aparezca sobre la serpiente
+       
 
         # Crear la comida en una posición aleatoria dentro de los límites de la pantalla
         self.randomize_position()
@@ -60,11 +70,14 @@ class Food:
 
     # Método para colocar la comida en una posición aleatoria
     def randomize_position(self):
-        # Genera una posición aleatoria para la comida dentro de los límites de la pantalla
-        self.coordinates = [
-            random.randint(0, (WIDTH // SPACE_SIZE) - 1) * SPACE_SIZE,
-            random.randint(0, (HEIGHT // SPACE_SIZE) - 1) * SPACE_SIZE
-        ]
+      while True:  
+        x = random.randint(0, (WIDTH // SPACE_SIZE) - 1) * SPACE_SIZE
+        y = random.randint(0, (HEIGHT // SPACE_SIZE) - 1) * SPACE_SIZE
+        if [x, y] not in self.snake.coordinates:
+                self.coordinates = [x, y]
+                self.canvas.coords(self.square, x, y, x + SPACE_SIZE, y + SPACE_SIZE)
+                break
+
 
 
 # FUNCIONES: 
@@ -93,10 +106,9 @@ def check_collisions(snake):
     if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
         return True  # Si la cabeza está fuera de los límites, retornar True (colisión)
     
-    # Verificar si la serpiente ha colisionado consigo misma
-    for body_part in snake.coordinates[1:]:  # Comprobar cada parte del cuerpo de la serpiente
-        if x == body_part[0] and y == body_part[1]:  # Si la cabeza toca alguna parte de su cuerpo
-            return True  # Retornar True si ha colisionado
+    if [x, y] in snake.coordinates[1:]:  # Si la cabeza toca alguna parte de su cuerpo
+        return True  # Retornar True si ha colisionado
+    
     return False  # Si no hay colisión, retornar False
 
 
@@ -113,17 +125,18 @@ def game_over(canvas, window):
         tag="gameover"  # Etiqueta para el mensaje de fin de juego
     )
     canvas.create_text(
-        WIDTH / 1, HEIGHT / 1, 
+        WIDTH / 2, HEIGHT / 3, 
         font=('consolas', 20),
-        text = " Pulsa R para reiniciar", fill = "white",
+        text = " Pulsa R para reiniciar", fill = "green",
     )
+    window.after(800, lambda: window.quit())  #Se cierre la ventana después de un tiempo.
     window.bind('<r>', lambda event: restart_game(canvas,window))
 
-
+ 
 #FUNCIÓN para REINICIAR el juego 
-def restart_game(canvas,window):
+def restart_game(canvas, window):
     canvas.delete(ALL)
-    main()
+    main()  # Llama de nuevo a la función principal para reiniciar el juego
 
 
 # FUNCIÓN para actualizar la posición de la serpiente
@@ -146,7 +159,7 @@ def next_turn(snake, food, window, canvas):
     snake.squares.insert(0, square)  # Añadir el rectángulo creado a la lista de partes de la serpiente
     
     # Verifica si la serpiente ha comido la comida
-    if x == food.coordinates[0] and y == food.coordinates[1]:
+    if [x, y] == food.coordinates:
          score += 1  # Aumentar la puntuación
          update_score(canvas, score)  # Actualizar la puntuación en pantalla
          food.randomize_position()  # Genera nueva comida  
@@ -194,10 +207,20 @@ def main():
     global window, canvas, snake, food, score, direction
     window = Tk()  
     window.title("Juego de la Serpiente")  
-    canvas = Canvas(window, bg=BACKGROUND, width=WIDTH, height=HEIGHT)  
+    #CAPTURAMOS LA EXCEPCIÓN PARA QUE SI NO HAY IMAGEN DE FONDO NO DE FALLO Y CARGE EL FONDO NEGRO.
+    try:
+        bg = Image.open("Bosque.jpg").resize((WIDTH, HEIGHT))#Carga la imagen del fondo.
+        bg_image =  ImageTk.PhotoImage(bg)
+    except:
+        bg_image = None
+    canvas = Canvas(window, width = WIDTH, height= HEIGHT)
+    if bg_image:
+        canvas.create_image(0, 0, anchor=NW, image=bg_image)#Mostrar la imagen de fondo
+    else:
+        canvas.create_rectangle(0 ,0, WIDTH, HEIGHT, fill= BACKGROUND)
     canvas.pack()  
     snake = Snake(canvas)  
-    food = Food(canvas)  
+    food = Food(canvas, snake)  
     score= 0
     direction = "down"
     update_score(canvas, score)  # Muestra la puntuación inicial  

@@ -1,15 +1,6 @@
 # Importo las librerías que me hacen falta
 from tkinter import * #Interfaz gráfica en python
 import random #Para la aparición de la comida
-from PIL import Image, ImageTk  # Para cargar imágenes en Tkinter
-
-# Intentamos importar PIL y manejar la excepción si no está instalada
-try:
-    from PIL import Image, ImageTk  # Para cargar imágenes en Tkinter
-except ImportError:
-    print("Error: PIL no está instalado. Ejecuta 'pip install pillow' para instalarlo.")
-    print("Luego, ejecuta 'python main.py' para iniciar el juego sin el fondo.")
-    exit()  
 
 # Empiezo definiendo las dimensiones del juego
 WIDTH = 500     # Anchura
@@ -106,7 +97,7 @@ def check_collisions(snake):
     if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
         return True  # Si la cabeza está fuera de los límites, retornar True (colisión)
     
-    if [x, y] in snake.coordinates[1:]:  # Si la cabeza toca alguna parte de su cuerpo
+    if (x, y) in set(map(tuple, snake.coordinates[1:])):  # Si la cabeza toca alguna parte de su cuerpo
         return True  # Retornar True si ha colisionado
     
     return False  # Si no hay colisión, retornar False
@@ -204,27 +195,29 @@ def bind_keys(window):
 
 # FUNCIÓN principal del juego
 def main():
-    global window, canvas, snake, food, score, direction
+    global window, canvas, snake, food, score, direction, bg_image
     window = Tk()  
     window.title("Juego de la Serpiente")  
-    #CAPTURAMOS LA EXCEPCIÓN PARA QUE SI NO HAY IMAGEN DE FONDO NO DE FALLO Y CARGE EL FONDO NEGRO.
-    try:
-        bg = Image.open("Bosque.jpg").resize((WIDTH, HEIGHT))#Carga la imagen del fondo.
-        bg_image =  ImageTk.PhotoImage(bg)
-    except:
-        bg_image = None
-    canvas = Canvas(window, width = WIDTH, height= HEIGHT)
-    if bg_image:
-        canvas.create_image(0, 0, anchor=NW, image=bg_image)#Mostrar la imagen de fondo
-    else:
-        canvas.create_rectangle(0 ,0, WIDTH, HEIGHT, fill= BACKGROUND)
+    canvas = Canvas(window, width=WIDTH, height=HEIGHT)
+   
+   #Carga la imagen del fondo 
+    bg_image = PhotoImage(file="fondo_jungla.png")
+    canvas.create_image(0, 0, anchor=NW, image=bg_image)
     canvas.pack()  
+    
+    #carga la serpiente y la comida 
     snake = Snake(canvas)  
     food = Food(canvas, snake)  
+   
+   #Reinicia las variables
     score= 0
     direction = "down"
+   
+   #Muestra la puntación
     update_score(canvas, score)  # Muestra la puntuación inicial  
     bind_keys(window)  
+    
+    #Inicia el juego 
     next_turn(snake, food, window, canvas)  # Iniciar el juego  
     window.mainloop()  # Ejecutar la ventana
 

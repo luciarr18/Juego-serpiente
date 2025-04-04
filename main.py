@@ -1,6 +1,7 @@
 # Importo las librerías que me hacen falta
 from tkinter import * #Interfaz gráfica en python
 import random #Para la aparición de la comida
+import os  # Para manejar archivos
 
 # Empiezo definiendo las dimensiones del juego
 WIDTH = 500     # Anchura
@@ -11,11 +12,39 @@ BODY_SIZE = 2   # Tamaño inicial de la serpiente, conforme empieza el juego
 FOOD = '#FF0000' # Color para la comida
 SNAKE = '#00FF00' # Color para la serpiente
 BACKGROUND = '#000000' # Color para el fondo
+SCORE_FILE = "highscore.txt"  # Archivo para guardar la mejor puntuación
 
  # Inicialización de la puntuación global
 score = 0  # Puntuación inicial
+high_score = 0
 direction = "down"  # Dirección inicial de la serpiente 
 
+# Cargar la mejor puntuación
+def load_high_score():
+    global high_score
+    if os.path.exists(SCORE_FILE):
+        with open(SCORE_FILE, "r") as file:
+            try:
+                high_score = int(file.read())
+            except ValueError:
+                high_score = 0
+
+# Guardar la mejor puntuación
+def save_high_score():
+    global score, high_score
+    if score > high_score:
+        high_score = score
+        with open(SCORE_FILE, "w") as file:
+            file.write(str(high_score))
+
+# Actualizar la puntuación en pantalla
+def update_score(canvas, score):
+    canvas.delete("score")
+    canvas.create_text(
+        300, 20, font=('consolas', 20),
+        text=f"Puntuación: {score}  Mejor: {high_score}",
+        fill="white", tag="score"
+    )
 
 #CREACIÓN DE CLASES:
 
@@ -27,17 +56,11 @@ class Snake:
     def __init__(self, canvas):
         self.canvas = canvas  # Guardo el canvas dentro de la clase
         self.body_size = BODY_SIZE 
-        self.coordinates = []  # Lista de coordenadas (x, y)
-        self.squares = []  # Lista con las partes de la serpiente 
-
-        for i in range(0, BODY_SIZE): # Este bucle hace que los cuadraditos que mida la serpiente estén unidos. 
-            self.coordinates.append([0, 0])  # Inicialmente, la serpiente está en (0,0)
-
-        for x, y in self.coordinates:
-            square = self.canvas.create_rectangle(
-                x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE, tag='snake'
-            )
-            self.squares.append(square)
+        self.coordinates = [[0, 0]] * BODY_SIZE  # Lista de coordenadas (x, y)
+        self.squares = [
+                self.canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE)
+                for x, y in self.coordinates
+            ]  
 
 
 # Creo la clase comida 
@@ -47,47 +70,27 @@ class Food:
         self.snake = snake # Para evitar que la comida aparezca sobre la serpiente
         self.coordinates = []  # Lista para almacenar la coordenada de la comida
         self.square = None  # Inicialmente, la comida no tiene un rectángulo
-       
+        self.food_image = PhotoImage(file="manzana.png")  # Cargar la imagen de la manzana
 
         # Crear la comida en una posición aleatoria dentro de los límites de la pantalla
         self.randomize_position()
-        
-        # Crear el rectángulo que representa la comida en el canvas
-        self.square = self.canvas.create_rectangle(
-            self.coordinates[0], self.coordinates[1],
-            self.coordinates[0] + SPACE_SIZE, self.coordinates[1] + SPACE_SIZE,
-            fill=FOOD, tag="food"
-        )
 
-    # Método para colocar la comida en una posición aleatoria
     def randomize_position(self):
-      while True:  
-        x = random.randint(0, (WIDTH // SPACE_SIZE) - 1) * SPACE_SIZE
-        y = random.randint(0, (HEIGHT // SPACE_SIZE) - 1) * SPACE_SIZE
-        if [x, y] not in self.snake.coordinates:
+        while True:
+            x = random.randint(0, (WIDTH // SPACE_SIZE) - 1) * SPACE_SIZE
+            y = random.randint(0, (HEIGHT // SPACE_SIZE) - 1) * SPACE_SIZE
+            if [x, y] not in self.snake.coordinates:
                 self.coordinates = [x, y]
-                self.canvas.coords(self.square, x, y, x + SPACE_SIZE, y + SPACE_SIZE)
+                if self.square:
+                    # No es necesario usar coords con un rectángulo, solo con imágenes
+                    self.canvas.coords(self.square, x + SPACE_SIZE / 2, y + SPACE_SIZE / 2)
+                else:
+                    # Colocamos la imagen en la posición (x + SPACE_SIZE / 2, y + SPACE_SIZE / 2)
+                    self.square = self.canvas.create_image(x + SPACE_SIZE / 2, y + SPACE_SIZE / 2, image=self.food_image)
                 break
-
-
+            
 
 # FUNCIONES: 
-
-# FUNCIÓN para actualizar y mostrar la puntuación
-def update_score(canvas, score):
-   
-    # Eliminar el texto de puntaje anterior (si existe)
-    canvas.delete("score")
-    
-    # Crear el nuevo texto con el puntaje actualizado
-    canvas.create_text(
-        100, 20,  # Posicionamos el texto en la esquina superior izquierda
-        font=('consolas', 20),  # Tipo de letra y tamaño
-        text="Puntuación: " + str(score),  # Mostramos la puntuación
-        fill="white",  # Color blanco para el texto
-        tag="score"  # Etiqueta para identificar el texto de la puntuación
-    )
-
 
 # FUNCIÓN para verificar si ha ocurrido una colisión / Para que no se salga de los limites de la pantalla. 
 def check_collisions(snake):
@@ -115,12 +118,21 @@ def game_over(canvas, window):
         text="HAS PERDIDO", fill="red",  # Mostrar "HAS PERDIDO" en rojo  
         tag="gameover"  # Etiqueta para el mensaje de fin de juego
     )
+
+    canvas.create_text(
+        WIDTH / 2, HEIGHT / 4,
+        font=('consolas', 20),
+        text=f"TU PUNTACIÓN!!: {score}", fill="black",  # Mostrar la puntuación en el mensaje
+    )
+
     canvas.create_text(
         WIDTH / 2, HEIGHT / 3, 
         font=('consolas', 20),
         text = " Pulsa R para reiniciar", fill = "green",
     )
-    
+    # Guardar la mejor puntuación
+    save_high_score()
+
     window.bind('<r>', lambda event: restart_game(canvas,window))
    
 
@@ -241,4 +253,6 @@ def main():
 
 #INICIAR EL JUEGO
 if __name__== "__main__":
+    main()
+    load_high_score()  # Cargar la mejor puntuación al iniciar el juego
     main()

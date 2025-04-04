@@ -120,15 +120,33 @@ def game_over(canvas, window):
         font=('consolas', 20),
         text = " Pulsa R para reiniciar", fill = "green",
     )
-    window.after(800, lambda: window.quit())  #Se cierre la ventana después de un tiempo.
+    
     window.bind('<r>', lambda event: restart_game(canvas,window))
+   
 
  
 #FUNCIÓN para REINICIAR el juego 
 def restart_game(canvas, window):
+    global score, direction, snake, food  # Asegurarse de resetear estas variables
+    score = 0
+    direction = "down"
+    
+    #¨LIMPIA¨ la pantalla y reinicia los objetos 
     canvas.delete(ALL)
-    main()  # Llama de nuevo a la función principal para reiniciar el juego
 
+     # Re-crear la imagen del fondo
+    bg_image = PhotoImage(file="fondo_jungla.png") 
+    canvas.create_image(0, 0, anchor=NW, image=bg_image)
+
+   # Re-crear la serpiente y la comida
+    snake = Snake(canvas)
+    food = Food(canvas, snake)
+    
+    update_score(canvas, score)  # Mostrar la puntuación inicial  
+    bind_keys(window)  # Volver a enlazar las teclas de dirección
+    
+    # Iniciar el movimiento de la serpiente
+    next_turn(snake, food, window, canvas)
 
 # FUNCIÓN para actualizar la posición de la serpiente
 def next_turn(snake, food, window, canvas):
